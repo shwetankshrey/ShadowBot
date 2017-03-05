@@ -1,0 +1,14 @@
+﻿<Window x:Class="ShadowBot_Kinect.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow" Height="180" Width="400" Loaded="WindowLoaded" Closing="WindowClosing">
+    <Grid>
+        <Label x:Name="head" Content="Joint Angles" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+        <Label x:Name="label1" Content="Elbow Angle:" HorizontalAlignment="Left" Margin="5,39,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="label2" Content="Shoulder Y Angle:" HorizontalAlignment="Left" Margin="5,70,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="elb" Content="" HorizontalAlignment="Left" Margin="211,39,0,0" VerticalAlignment="Top" Width="143" BorderThickness="1" Background="#FFD4D4D4"/>
+        <Label x:Name="sho1" Content="" HorizontalAlignment="Left" Margin="211,67,0,0" VerticalAlignment="Top" Width="143" BorderThickness="1" Background="#FFD4D4D4"/>
+        <Label x:Name="label3" Content="Shoulder Z Angle:" HorizontalAlignment="Left" Margin="5,101,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="sho2" Content="" HorizontalAlignment="Left" Margin="211,98,0,0" VerticalAlignment="Top" Width="143" BorderThickness="1" Background="#FFD4D4D4"/>
+    </Grid>
+</Window>
