@@ -12,3 +12,6 @@ C:\Users\shwetankshrey\Documents\Kinectv1.8\ShadowBot_Kinect\ShadowBot_Kinect\ob
 C:\Users\shwetankshrey\Documents\Kinectv1.8\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.csproj.GenerateResource.Cache
 C:\Users\shwetankshrey\Documents\Kinectv1.8\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.exe
 C:\Users\shwetankshrey\Documents\Kinectv1.8\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.pdb
+C:\Users\shwetankshrey\Documents\Kinectv1.8\ShadowBot_Kinect\ShadowBot_Kinect\bin\Debug\InTheHand.Net.Personal.dll
+C:\Users\shwetankshrey\Documents\Kinectv1.8\ShadowBot_Kinect\ShadowBot_Kinect\bin\Debug\InTheHand.Net.Personal.xml
+C:\Users\shwetankshrey\Documents\Kinectv1.8\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.csprojResolveAssemblyReference.cache
