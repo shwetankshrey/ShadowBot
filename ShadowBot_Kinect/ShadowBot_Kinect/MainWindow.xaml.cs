@@ -21,6 +21,8 @@ using System.Windows;
 using System.Windows.Media.Media3D;
 // Loading Kinect references from the Microsoft Kinect SDK
 using Microsoft.Kinect;
+// Loading default C# serial communication references
+using System.IO.Ports;
 
 // Start of Code
 namespace ShadowBot_Kinect
@@ -29,6 +31,7 @@ namespace ShadowBot_Kinect
     public partial class MainWindow : Window
     {
         private KinectSensor sensor;
+        private SerialPort port;
         public MainWindow()
         {
             InitializeComponent();
@@ -36,6 +39,11 @@ namespace ShadowBot_Kinect
         // Actions performed on start of application
         private void WindowLoaded(object sender, RoutedEventArgs e)
         {
+            //Initialising Serial Port
+            port = new SerialPort();
+            port.BaudRate = 9600;
+            port.PortName = "COM4";
+            port.Open();
             // Initialising of Kinect
             // For all available Kinect sensors, choose a sensor as the one used
             foreach (var potentialSensor in KinectSensor.KinectSensors)
@@ -61,15 +69,12 @@ namespace ShadowBot_Kinect
                     sensor = null;
                 }
             }
-            // If Kinect sensor not found
-            if (null == sensor)
-            {
-                MessageBox.Show("Kinect not Found!", "Error");
-            }
         }
         // Actions performed on close of application
         private void WindowClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            //Serial port closed
+            port.Close();
             // Sensors to be closed if open
             if (null != sensor)
             {
@@ -106,7 +111,7 @@ namespace ShadowBot_Kinect
                 skel.Joints[JointType.WristRight].TrackingState == JointTrackingState.Tracked)
             {
                 // Print angles on the WPF application's labels
-                double[] ang = PrintAngles(skel);
+                int[] ang = PrintAngles(skel);
                 ls1.Content = ang[0];
                 ls2.Content = ang[1];
                 le.Content = ang[2];
@@ -117,10 +122,17 @@ namespace ShadowBot_Kinect
                 rh.Content = ang[7];
                 lk.Content = ang[8];
                 lk.Content = ang[9];
+                // Print angles on the serial port
+                /*
+                String toSend = ang[0].ToString();
+                for (int i = 1; i < 10; i++)
+                    toSend += (":"+ang[i]);
+                port.WriteLine(toSend);
+                */
             }
         }
         // Method to print certain angles in a skeleton
-        private double[] PrintAngles(Skeleton skeleton)
+        private int[] PrintAngles(Skeleton skeleton)
         {
             // Unit vectors
             Vector3D XVector = new Vector3D(1.0, 0.0, 0.0);
@@ -159,17 +171,17 @@ namespace ShadowBot_Kinect
             double AngleLeftKnee = AngleBetweenTwoVectors(LeftKnee - LeftHip, LeftKnee - LeftAnkle);
             double AngleRightKnee = AngleBetweenTwoVectors(RightKnee - RightHip, RightKnee - RightAnkle);
             // Joint angle array to be returned to the calling statement
-            double[] angle = new double[10];
-            angle[0] = AngleLeftShoulder1;
-            angle[1] = AngleLeftShoulder2;
-            angle[2] = AngleLeftElbow;
-            angle[3] = AngleRightShoulder1;
-            angle[4] = AngleRightShoulder2;
-            angle[5] = AngleRightElbow;
-            angle[6] = AngleLeftHip;
-            angle[7] = AngleLeftKnee;
-            angle[8] = AngleRightHip;
-            angle[9] = AngleRightKnee;
+            int[] angle = new int[10];
+            angle[0] = (int)AngleLeftShoulder1;
+            angle[1] = (int)AngleLeftShoulder2;
+            angle[2] = (int)AngleLeftElbow;
+            angle[3] = (int)AngleRightShoulder1;
+            angle[4] = (int)AngleRightShoulder2;
+            angle[5] = (int)AngleRightElbow;
+            angle[6] = (int)AngleLeftHip;
+            angle[7] = (int)AngleLeftKnee;
+            angle[8] = (int)AngleRightHip;
+            angle[9] = (int)AngleRightKnee;
             return angle;
         }
         // Method to calculate angle between two 3D vectors
