@@ -32,3 +32,7 @@ C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\Sha
 C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.g.resources
 C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.Properties.Resources.resources
 C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.csproj.GenerateResource.Cache
+C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\bin\Debug\ShadowBot_Kinect.exe.manifest
+C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\bin\Debug\ShadowBot_Kinect.application
+C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.exe.manifest
+C:\Users\shwetankshrey\ShadowBot\ShadowBot_Kinect\ShadowBot_Kinect\obj\Debug\ShadowBot_Kinect.application

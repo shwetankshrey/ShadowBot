@@ -8,16 +8,13 @@
  * sends it to the Arduino via Bluetooth.
  */
 
- /*
-  * Issues remaining:
-  * Work on bluetooth remaining
-  */
-
 // Loading basic C# references used
 using System;
 using System.Linq;
 using System.IO;
+using System.Threading;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Media3D;
 // Loading Kinect references from the Microsoft Kinect SDK
 using Microsoft.Kinect;
@@ -30,8 +27,38 @@ namespace ShadowBot_Kinect
     // Main Window
     public partial class MainWindow : Window
     {
+        // Initialising of Global Variables
+
+        // Kinect Sensor
         private KinectSensor sensor;
+        // Serial Port for Bluetooth Communication
         private SerialPort port;
+
+        //For Skeleton Stream
+        // Width of output drawing
+        private const float RenderWidth = 640.0f;
+        // Height of our output drawing
+        private const float RenderHeight = 480.0f;
+        // Thickness of drawn joint lines
+        private const double JointThickness = 3;
+        // Thickness of body center ellipse
+        private const double BodyCenterThickness = 10;
+        // Thickness of clip edge rectangles
+        private const double ClipBoundsThickness = 10;
+        // Brush used to draw skeleton center point
+        private readonly Brush centerPointBrush = Brushes.Blue;
+        // Brush used for drawing joints that are currently tracked
+        private readonly Brush trackedJointBrush = new SolidColorBrush(Color.FromArgb(255, 68, 192, 68));
+        // Brush used for drawing joints that are currently inferred
+        private readonly Brush inferredJointBrush = Brushes.Yellow;
+        // Pen used for drawing bones that are currently tracked
+        private readonly Pen trackedBonePen = new Pen(Brushes.Green, 6);
+        // Pen used for drawing bones that are currently inferred
+        private readonly Pen inferredBonePen = new Pen(Brushes.Gray, 1);
+        // Drawing group for skeleton rendering output
+        private DrawingGroup drawingGroup;
+        // Drawing image that we will display
+        private DrawingImage imageSource;
         public MainWindow()
         {
             InitializeComponent();
@@ -39,10 +66,18 @@ namespace ShadowBot_Kinect
         // Actions performed on start of application
         private void WindowLoaded(object sender, RoutedEventArgs e)
         {
+            // Create the drawing group we'll use for drawing
+            drawingGroup = new DrawingGroup();
+            // Create an image source that we can use in our image control
+            imageSource = new DrawingImage(drawingGroup);
+            // Display the drawing using our image control
+            Image.Source = imageSource;
             //Initialising Serial Port
             port = new SerialPort();
             port.BaudRate = 9600;
-            port.PortName = "COM4";
+            port.PortName = "COM3";
+            if(port.IsOpen)
+                port.Close();
             port.Open();
             // Initialising of Kinect
             // For all available Kinect sensors, choose a sensor as the one used
@@ -85,7 +120,7 @@ namespace ShadowBot_Kinect
         private void Sensor_SkeletonFrameReady(object sender, SkeletonFrameReadyEventArgs e)
         {
             // Initialise skeleton array to store available skeletons (maximum 6)
-            Skeleton[] skeletons = new Skeleton[6];
+            Skeleton[] skeletons = new Skeleton[0];
             // Store skeletons from available skeleton frame to the array
             using (SkeletonFrame skeletonFrame = e.OpenSkeletonFrame())
             {
@@ -105,10 +140,40 @@ namespace ShadowBot_Kinect
             {
                 return;
             }
+
+            //Draw Skeleton
+            using (DrawingContext dc = drawingGroup.Open())
+            {
+                // Draw a transparent background to set the render size
+                dc.DrawRectangle(Brushes.Black, null, new Rect(0.0, 0.0, RenderWidth, RenderHeight));
+                RenderClippedEdges(skel, dc);
+                if (skel.TrackingState == SkeletonTrackingState.Tracked)
+                {
+                    DrawBonesAndJoints(skel, dc);
+                }
+                else if (skel.TrackingState == SkeletonTrackingState.PositionOnly)
+                {
+                    dc.DrawEllipse(
+                    this.centerPointBrush,
+                    null,
+                    SkeletonPointToScreen(skel.Position),
+                    BodyCenterThickness,
+                    BodyCenterThickness);
+                }
+                // prevent drawing outside of our render area
+                this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, RenderWidth, RenderHeight));
+            }
             // If skeletons are being tracked in real time in synchronisation, process angles
             if (skel.Joints[JointType.ShoulderRight].TrackingState == JointTrackingState.Tracked &&
                 skel.Joints[JointType.ElbowRight].TrackingState == JointTrackingState.Tracked &&
-                skel.Joints[JointType.WristRight].TrackingState == JointTrackingState.Tracked)
+                skel.Joints[JointType.WristRight].TrackingState == JointTrackingState.Tracked &&
+                skel.Joints[JointType.ShoulderLeft].TrackingState == JointTrackingState.Tracked &&
+                skel.Joints[JointType.ElbowLeft].TrackingState == JointTrackingState.Tracked &&
+                skel.Joints[JointType.WristLeft].TrackingState == JointTrackingState.Tracked &&
+                skel.Joints[JointType.HipRight].TrackingState == JointTrackingState.Tracked &&
+                skel.Joints[JointType.KneeRight].TrackingState == JointTrackingState.Tracked &&
+                skel.Joints[JointType.HipLeft].TrackingState == JointTrackingState.Tracked &&
+                skel.Joints[JointType.KneeLeft].TrackingState == JointTrackingState.Tracked)
             {
                 // Print angles on the WPF application's labels
                 int[] ang = PrintAngles(skel);
@@ -121,15 +186,122 @@ namespace ShadowBot_Kinect
                 lh.Content = ang[6];
                 rh.Content = ang[7];
                 lk.Content = ang[8];
-                lk.Content = ang[9];
+                rk.Content = ang[9];
                 // Print angles on the serial port
-                /*
-                String toSend = ang[0].ToString();
-                for (int i = 1; i < 10; i++)
-                    toSend += (":"+ang[i]);
+                string toSend = "";
+                for (int i = 0; i < 6; i++)
+                    toSend += (ang[i]+":");
+                Console.WriteLine(toSend);
                 port.WriteLine(toSend);
-                */
+                Thread.Sleep(500);
             }
+        }
+        // Draws indicators to show which edges are clipping skeleton data
+        private static void RenderClippedEdges(Skeleton skeleton, DrawingContext drawingContext)
+        {
+            if (skeleton.ClippedEdges.HasFlag(FrameEdges.Bottom))
+            {
+                drawingContext.DrawRectangle(Brushes.Red, null, new Rect(0, RenderHeight - ClipBoundsThickness, RenderWidth, ClipBoundsThickness));
+            }
+            if (skeleton.ClippedEdges.HasFlag(FrameEdges.Top))
+            {
+                drawingContext.DrawRectangle(Brushes.Red, null, new Rect(0, 0, RenderWidth, ClipBoundsThickness));
+            }
+            if (skeleton.ClippedEdges.HasFlag(FrameEdges.Left))
+            {
+                drawingContext.DrawRectangle(Brushes.Red, null, new Rect(0, 0, ClipBoundsThickness, RenderHeight));
+            }
+            if (skeleton.ClippedEdges.HasFlag(FrameEdges.Right))
+            {
+                drawingContext.DrawRectangle(Brushes.Red, null, new Rect(RenderWidth - ClipBoundsThickness, 0, ClipBoundsThickness, RenderHeight));
+            }
+        }
+        
+        // Draws a skeleton's bones and joints
+        private void DrawBonesAndJoints(Skeleton skeleton, DrawingContext drawingContext)
+        {
+            // Render Torso
+            this.DrawBone(skeleton, drawingContext, JointType.Head, JointType.ShoulderCenter);
+            this.DrawBone(skeleton, drawingContext, JointType.ShoulderCenter, JointType.ShoulderLeft);
+            this.DrawBone(skeleton, drawingContext, JointType.ShoulderCenter, JointType.ShoulderRight);
+            this.DrawBone(skeleton, drawingContext, JointType.ShoulderCenter, JointType.Spine);
+            this.DrawBone(skeleton, drawingContext, JointType.Spine, JointType.HipCenter);
+            this.DrawBone(skeleton, drawingContext, JointType.HipCenter, JointType.HipLeft);
+            this.DrawBone(skeleton, drawingContext, JointType.HipCenter, JointType.HipRight);
+
+            // Left Arm
+            this.DrawBone(skeleton, drawingContext, JointType.ShoulderLeft, JointType.ElbowLeft);
+            this.DrawBone(skeleton, drawingContext, JointType.ElbowLeft, JointType.WristLeft);
+
+            // Right Arm
+            this.DrawBone(skeleton, drawingContext, JointType.ShoulderRight, JointType.ElbowRight);
+            this.DrawBone(skeleton, drawingContext, JointType.ElbowRight, JointType.WristRight);
+
+            // Left Leg
+            this.DrawBone(skeleton, drawingContext, JointType.HipLeft, JointType.KneeLeft);
+            this.DrawBone(skeleton, drawingContext, JointType.KneeLeft, JointType.AnkleLeft);
+
+            // Right Leg
+            this.DrawBone(skeleton, drawingContext, JointType.HipRight, JointType.KneeRight);
+            this.DrawBone(skeleton, drawingContext, JointType.KneeRight, JointType.AnkleRight);
+
+            // Render Joints
+            foreach (Joint joint in skeleton.Joints)
+            {
+                Brush drawBrush = null;
+                if (joint.TrackingState == JointTrackingState.Tracked)
+                {
+                    drawBrush = trackedJointBrush;
+                }
+                else if (joint.TrackingState == JointTrackingState.Inferred)
+                {
+                    drawBrush = inferredJointBrush;
+                }
+
+                if (drawBrush != null)
+                {
+                    drawingContext.DrawEllipse(drawBrush, null, SkeletonPointToScreen(joint.Position), JointThickness, JointThickness);
+                }
+            }
+        }
+
+        // Maps a SkeletonPoint to lie within our render space and converts to Point
+        private Point SkeletonPointToScreen(SkeletonPoint skelpoint)
+        {
+            // Convert point to depth space.  
+            // We are not using depth directly, but we do want the points in our 640x480 output resolution.
+            DepthImagePoint depthPoint = sensor.CoordinateMapper.MapSkeletonPointToDepthPoint(skelpoint, DepthImageFormat.Resolution640x480Fps30);
+            return new Point(depthPoint.X, depthPoint.Y);
+        }
+        
+        // Draws a bone line between two joints
+        private void DrawBone(Skeleton skeleton, DrawingContext drawingContext, JointType jointType0, JointType jointType1)
+        {
+            Joint joint0 = skeleton.Joints[jointType0];
+            Joint joint1 = skeleton.Joints[jointType1];
+
+            // If we can't find either of these joints, exit
+            if (joint0.TrackingState == JointTrackingState.NotTracked ||
+                joint1.TrackingState == JointTrackingState.NotTracked)
+            {
+                return;
+            }
+
+            // Don't draw if both points are inferred
+            if (joint0.TrackingState == JointTrackingState.Inferred &&
+                joint1.TrackingState == JointTrackingState.Inferred)
+            {
+                return;
+            }
+
+            // We assume all drawn bones are inferred unless BOTH joints are tracked
+            Pen drawPen = this.inferredBonePen;
+            if (joint0.TrackingState == JointTrackingState.Tracked && joint1.TrackingState == JointTrackingState.Tracked)
+            {
+                drawPen = this.trackedBonePen;
+            }
+
+            drawingContext.DrawLine(drawPen, this.SkeletonPointToScreen(joint0.Position), this.SkeletonPointToScreen(joint1.Position));
         }
         // Method to print certain angles in a skeleton
         private int[] PrintAngles(Skeleton skeleton)
@@ -160,10 +332,10 @@ namespace ShadowBot_Kinect
             Vector3D LeftAnkle = new Vector3D(0, skeleton.Joints[JointType.AnkleLeft].Position.Y, skeleton.Joints[JointType.AnkleLeft].Position.Z);
             Vector3D RightAnkle = new Vector3D(0, skeleton.Joints[JointType.AnkleRight].Position.Y, skeleton.Joints[JointType.AnkleRight].Position.Z);
             // Major joint angles
-            double AngleLeftShoulder1 = AngleBetweenTwoVectors(LeftShoulderXY - LeftElbowXY, YVector);
-            double AngleLeftShoulder2 = AngleBetweenTwoVectors(LeftShoulderYZ - LeftElbowYZ, YVector);
-            double AngleRightShoulder1 = AngleBetweenTwoVectors(RightShoulderXY - RightElbowXY, YVector);
-            double AngleRightShoulder2 = AngleBetweenTwoVectors(RightShoulderYZ - RightElbowYZ, YVector);
+            double AngleLeftShoulder1 = AngleBetweenTwoVectors(LeftShoulderYZ - LeftElbowYZ, YVector);
+            double AngleLeftShoulder2 = AngleBetweenTwoVectors(LeftShoulderYZ - LeftElbowYZ, LeftShoulder - LeftElbow);
+            double AngleRightShoulder1 = AngleBetweenTwoVectors(RightShoulderYZ - RightElbowYZ, YVector);
+            double AngleRightShoulder2 = AngleBetweenTwoVectors(RightShoulderYZ - RightElbowYZ, RightShoulder - RightElbow);
             double AngleLeftElbow = AngleBetweenTwoVectors(LeftElbow - LeftShoulder, LeftElbow - LeftWrist);
             double AngleRightElbow = AngleBetweenTwoVectors(RightElbow - RightShoulder, RightElbow - RightWrist);
             double AngleLeftHip = AngleBetweenTwoVectors(LeftHip - LeftKnee, YVector);
@@ -172,17 +344,22 @@ namespace ShadowBot_Kinect
             double AngleRightKnee = AngleBetweenTwoVectors(RightKnee - RightHip, RightKnee - RightAnkle);
             // Joint angle array to be returned to the calling statement
             int[] angle = new int[10];
-            angle[0] = (int)AngleLeftShoulder1;
-            angle[1] = (int)AngleLeftShoulder2;
-            angle[2] = (int)AngleLeftElbow;
-            angle[3] = (int)AngleRightShoulder1;
-            angle[4] = (int)AngleRightShoulder2;
-            angle[5] = (int)AngleRightElbow;
-            angle[6] = (int)AngleLeftHip;
-            angle[7] = (int)AngleLeftKnee;
-            angle[8] = (int)AngleRightHip;
-            angle[9] = (int)AngleRightKnee;
+            angle[0] = Round((int)AngleLeftShoulder1);
+            angle[1] = Round((int)AngleLeftShoulder2);
+            angle[2] = Round((int)AngleLeftElbow);
+            angle[3] = Round((int)AngleRightShoulder1);
+            angle[4] = Round((int)AngleRightShoulder2);
+            angle[5] = Round((int)AngleRightElbow);
+            angle[6] = Round((int)AngleLeftHip);
+            angle[7] = Round((int)AngleLeftKnee);
+            angle[8] = Round((int)AngleRightHip);
+            angle[9] = Round((int)AngleRightKnee);
             return angle;
+        }
+        //Method to round off to nearest ten.
+        public static int Round(int value)
+        {
+            return 10 * (value / 10);
         }
         // Method to calculate angle between two 3D vectors
         private double AngleBetweenTwoVectors(Vector3D vectorA, Vector3D vectorB)
